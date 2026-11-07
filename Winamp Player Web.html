@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winamp Web Player (Audio, Video & Live IPTV) | Azhari</title>
+    <!-- Tailwind CSS for layout & utility -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HLS.js for Live .m3u8 IPTV Streams -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.12/dist/hls.min.js"></script>
+    <!-- Dash.js for MPEG-DASH .mpd Streams -->
+    <script src="https://cdn.jsdelivr.net/npm/dashjs@4.7.1/dist/dash.all.min.js"></script>
+    <!-- Retro Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --wa-bg-dark: #19191e;
+            --wa-panel-bg: #222329;
+            --wa-border-light: #525666;
+            --wa-border-dark: #101014;
+            --wa-gold: #ffb700;
+            --wa-green: #00ff2b;
+            --wa-cyan: #00e5ff;
+        }
+
+        body {
+            background: #0d0f17;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(30, 41, 59, 0.6) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.9) 0px, transparent 50%),
+                repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 2px);
+            color: #d1d5db;
+            font-family: 'Share Tech Mono', monospace;
+            user-select: none;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Classic Winamp 2.x Bevel Window Styling */
+        .winamp-bevel-out {
+            border-top: 2px solid #5a5e73;
+            border-left: 2px solid #5a5e73;
+            border-right: 2px solid #101117;
+            border-bottom: 2px solid #101117;
+            box-shadow: inset 1px 1px 0 #7b809a, inset -1px -1px 0 #1e2029;
+        }
+
+        .winamp-bevel-in {
+            border-top: 2px solid #101117;
+            border-left: 2px solid #101117;
+            border-right: 2px solid #5a5e73;
+            border-bottom: 2px solid #5a5e73;
+            box-shadow: inset 1px 1px 0 #000, inset -1px -1px 0 #3a3d4d;
+        }
+
+        .winamp-window {
+            background: linear-gradient(180deg, #323544 0%, #1c1d26 100%);
+            border: 2px solid #45495e;
+            box-shadow: 4px 6px 20px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .winamp-titlebar {
+            background: linear-gradient(90deg, #102647 0%, #204b87 50%, #102647 100%);
+            color: #72b1ff;
+            font-family: 'VT323', monospace;
+            font-size: 16px;
+            letter-spacing: 1px;
+            text-shadow: 1px 1px 2px #000;
+        }
+
+        .winamp-titlebar.active {
+            background: linear-gradient(90deg, #000080 0%, #1084d0 50%, #000080 100%);
+            color: #ffffff;
+        }
+
+        .led-font {
+            font-family: 'VT323', monospace;
+            color: #00ff2b;
+            text-shadow: 0 0 5px rgba(0, 255, 43, 0.6);
+        }
+
+        .btn-wa {
+            background: linear-gradient(180deg, #4c5067 0%, #292a36 100%);
+            border: 1px solid #101117;
+            box-shadow: inset 1px 1px 0 #6d7394, 1px 1px 2px rgba(0,0,0,0.5);
+            color: #e2e8f0;
+            font-weight: bold;
+            font-size: 11px;
+            transition: all 0.05s ease;
+        }
+        .btn-wa:active {
+            background: linear-gradient(180deg, #1e1f29 0%, #3e4154 100%);
+            box-shadow: inset 1px 1px 2px #000;
+            transform: translateY(1px);
+        }
+        .btn-wa.active {
+            background: linear-gradient(180deg, #0055aa 0%, #002255 100%);
+            color: #00ffcc;
+            border-color: #00ffff;
+            box-shadow: 0 0 6px rgba(0, 255, 255, 0.4);
+        }
+
+        input[type=range].wa-slider {
+            -webkit-appearance: none;
+            background: #111217;
+            height: 6px;
+            border-radius: 3px;
+            border: 1px solid #000;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.8);
+        }
+
+        input[type=range].wa-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 10px;
+            border-radius: 2px;
+            background: linear-gradient(180deg, #8a91b5 0%, #404459 100%);
+            border: 1px solid #0f1015;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.7);
+        }
+
+        input[type=range].wa-slider-vert {
+            -webkit-appearance: none;
+            writing-mode: bt-lr;
+            transform: rotate(270deg);
+            background: #0d0e12;
+            height: 6px;
+            border-radius: 3px;
+        }
+
+        .playlist-scroll::-webkit-scrollbar {
+            width: 12px;
+        }
+        .playlist-scroll::-webkit-scrollbar-track {
+            background: #12131a;
+            border-left: 1px solid #2d303e;
+        }
+        .playlist-scroll::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #44485c 0%, #252733 100%);
+            border: 1px solid #12131a;
+        }
+
+        .marquee-container {
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .marquee-text {
+            display: inline-block;
+            padding-left: 100%;
+            animation: marquee 14s linear infinite;
+        }
+        @keyframes marquee {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-100%, 0); }
+        }
+
+        .drop-zone-active {
+            border: 2px dashed #00e5ff !important;
+            background: rgba(0, 229, 255, 0.1) !important;
+        }
+    </style>
+</head>
+
+<body class="p-2 md:p-6 flex flex-col items-center justify-start min-h-screen">
+
+    <!-- Top Web Header -->
+    <header class="w-full max-w-6xl mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-900/90 border border-slate-700/60 rounded-xl backdrop-blur-md shadow-lg">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber🇲🇾-400 font-bold text-lg shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+               🇲🇾 
+            </div>
+            <div>
+                <h1 class="font-bold text-base md:text-lg text-slate-100 tracking-wide flex items-center gap-2">
+                    WINAMP | Azhari <span class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">AUDIO • VIDEO • HLS • DASH • IPTV</span>
+                </h1>
+                <p class="text-xs text-slate-400">Play Audio, Video Files, HLS Streams (.m3u8), MPEG-DASH (.mpd), and IPTV Playlists (.m3u)</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+            <button id="btn-pip" class="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                Picture-in-Picture (PiP)
+            </button>
+            <button id="btn-open-url-modal" class="px-3 py-1.5 rounded bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-semibold flex items-center gap-1 transition">
+                + Add URL / Stream
+            </button>
+            <button id="btn-layout-reset" class="px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold flex items-center gap-1 transition">
+                Reset Layout
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Drag and Drop Workspace Container -->
+    <main id="player-workspace" class="w-full max-w-6xl flex flex-col md:flex-row flex-wrap justify-center items-start gap-4 relative">
+        
+        <!-- ================= MAIN CONTROLLER WINDOW ================= -->
+        <div id="winamp-main" class="winamp-window w-full md:w-[275px] shrink-0 z-40 select-none">
+            <div class="winamp-titlebar active px-2 py-1 flex items-center justify-between cursor-move handle">
+                <span class="flex items-center gap-1 font-bold text-xs tracking-wider">
+                    <span class="text-amber-400">🇲🇾</span> WINAMP AZHARI
+                </span>
+                <div class="flex items-center gap-1 text-[10px]">
+                    <button class="w-3.5 h-3.5 bg-slate-700 hover:bg-slate-600 border border-slate-900 text-white font-bold flex items-center justify-center">_</button>
+                    <button class="w-3.5 h-3.5 bg-slate-700 hover:bg-slate-600 border border-slate-900 text-white font-bold flex items-center justify-center">X</button>
+                </div>
+            </div>
+
+            <div class="p-2 space-y-2">
+                <!-- Display Screen Section -->
+                <div class="winamp-bevel-in bg-black p-2 relative text-green-400 overflow-hidden rounded-sm">
+                    <div class="flex justify-between items-center text-[11px] border-b border-green-950/80 pb-1 mb-1">
+                        <div class="flex gap-2 font-mono text-[10px] text-emerald-400/80">
+                            <span id="display-kbps">128 kbps</span>
+                            <span id="display-khz">44 kHz</span>
+                            <span id="display-type" class="text-amber-400 font-bold">AUDIO</span>
+                        </div>
+                        <div id="display-status" class="text-[10px] uppercase font-bold tracking-widest text-emerald-400">STOPPED</div>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-baseline cursor-pointer" id="time-counter" title="Click to toggle Elapsed / Remaining time">
+                            <span id="time-minus" class="led-font text-xl text-emerald-400 hidden">-</span>
+                            <span id="time-display" class="led-font text-3xl tracking-wider leading-none text-emerald-400">00:00</span>
+                        </div>
+
+                        <!-- Mini Visualizer Canvas -->
+                        <div class="relative w-[110px] h-[38px] bg-black border border-emerald-900/60 rounded overflow-hidden">
+                            <canvas id="main-vis-canvas" width="110" height="38" class="w-full h-full cursor-pointer" title="Click to toggle Spectrum / Oscilloscope"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Marquee Track Name Display -->
+                    <div class="mt-1 bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-900/40 text-xs font-mono text-emerald-300 marquee-container">
+                        <div id="track-marquee" class="marquee-text">WINAMP 2.91 - Universal Media Player</div>
+                    </div>
+                </div>
+
+                <!-- Control Panel -->
+                <div class="space-y-2">
+                    <div class="grid grid-cols-2 gap-2 text-[10px] uppercase font-bold text-slate-300">
+                        <div class="flex flex-col gap-1 bg-slate-900/50 p-1.5 rounded border border-slate-700/40">
+                            <div class="flex justify-between">
+                                <span>VOL:</span>
+                                <span id="vol-val" class="text-emerald-400">100%</span>
+                            </div>
+                            <input id="slider-volume" type="range" min="0" max="1" step="0.01" value="1" class="wa-slider w-full">
+                        </div>
+                        <div class="flex flex-col gap-1 bg-slate-900/50 p-1.5 rounded border border-slate-700/40">
+                            <div class="flex justify-between">
+                                <span>BAL:</span>
+                                <span id="bal-val" class="text-emerald-400">CENTER</span>
+                            </div>
+                            <input id="slider-balance" type="range" min="-1" max="1" step="0.05" value="0" class="wa-slider w-full">
+                        </div>
+                    </div>
+
+                    <!-- Seek Bar -->
+                    <div class="flex flex-col gap-1 bg-slate-900/50 p-1.5 rounded border border-slate-700/40">
+                        <div class="flex justify-between text-[10px] text-slate-400 font-bold">
+                            <span>SEEK POSITION</span>
+                            <span id="seek-time-text">0:00 / 0:00</span>
+                        </div>
+                        <input id="slider-seek" type="range" min="0" max="100" value="0" step="0.1" class="wa-slider w-full cursor-pointer">
+                    </div>
+
+                    <!-- Playback Buttons -->
+                    <div class="grid grid-cols-5 gap-1 pt-1">
+                        <button id="btn-prev" title="Previous" class="btn-wa py-1.5 rounded flex items-center justify-center text-xs">⏮</button>
+                        <button id="btn-play" title="Play" class="btn-wa py-1.5 rounded flex items-center justify-center text-xs">▶</button>
+                        <button id="btn-pause" title="Pause" class="btn-wa py-1.5 rounded flex items-center justify-center text-xs">⏸</button>
+                        <button id="btn-stop" title="Stop" class="btn-wa py-1.5 rounded flex items-center justify-center text-xs">⏹</button>
+                        <button id="btn-next" title="Next" class="btn-wa py-1.5 rounded flex items-center justify-center text-xs">⏭</button>
+                    </div>
+
+                    <!-- Options Row -->
+                    <div class="flex items-center justify-between gap-1 text-[10px]">
+                        <button id="btn-eject" class="btn-wa px-1.5 py-1 rounded flex-1" title="Load Audio, Video or M3U Playlist">⏏ LOAD</button>
+                        <button id="btn-shuf" class="btn-wa px-1 py-1 rounded flex-1">SHUF</button>
+                        <button id="btn-rep" class="btn-wa px-1 py-1 rounded flex-1">REP</button>
+                        <button id="btn-toggle-eq" class="btn-wa px-1 py-1 rounded flex-1 active">EQ</button>
+                        <button id="btn-toggle-vid" class="btn-wa px-1 py-1 rounded flex-1 active">VID</button>
+                        <button id="btn-toggle-pl" class="btn-wa px-1 py-1 rounded flex-1 active">PL</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= VIDEO & STREAM DISPLAY WINDOW ================= -->
+        <div id="winamp-video" class="winamp-window w-full md:w-[320px] shrink-0 z-30 select-none flex flex-col">
+            <div class="winamp-titlebar active px-2 py-1 flex items-center justify-between cursor-move handle">
+                <span class="font-bold text-xs tracking-wider">WINAMP VIDEO & LIVE STREAM</span>
+                <div class="flex items-center gap-1">
+                    <button id="btn-video-pip-inline" class="text-[10px] px-1 bg-slate-700 hover:bg-slate-600 rounded text-cyan-300 font-bold" title="Pop out Picture-in-Picture">PiP</button>
+                    <button class="btn-close-vid w-3.5 h-3.5 bg-slate-700 border border-slate-900 text-white flex items-center justify-center text-[10px]">X</button>
+                </div>
+            </div>
+            
+            <div class="p-2 space-y-2 flex-1 flex flex-col">
+                <!-- Screen Container -->
+                <div class="winamp-bevel-in bg-black rounded relative aspect-video flex items-center justify-center overflow-hidden">
+                    <!-- HTML5 Video / IPTV Live Streaming Engine -->
+                    <video id="media-engine" crossorigin="anonymous" playsinline class="w-full h-full object-contain hidden"></video>
+                    
+                    <!-- Cover Art & Audio Spectrum View for Audio Tracks -->
+                    <div id="audio-screen-fallback" class="w-full h-full relative flex items-center justify-center">
+                        <img id="video-window-art" src="https://i.ibb.co/hFyq6Dqm/images.jpg" alt="Album Cover" class="w-full h-full object-cover opacity-60">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/40 flex flex-col justify-end p-2">
+                            <span id="audio-fallback-title" class="text-xs font-bold text-amber-400 truncate">Apache Deep House Remix</span>
+                            <span class="text-[10px] text-emerald-400 font-mono">Audio Visualization Active</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Video Status Controls -->
+                <div class="flex items-center justify-between text-[10px] bg-slate-900/60 p-1.5 rounded border border-slate-700/40">
+                    <span id="video-mode-badge" class="px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">AUDIO MODE</span>
+                    <button id="btn-fullscreen-vid" class="btn-wa px-2 py-0.5 rounded">FULLSCREEN</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= EQUALIZER WINDOW ================= -->
+        <div id="winamp-eq" class="winamp-window w-full md:w-[275px] shrink-0 z-20 select-none">
+            <div class="winamp-titlebar active px-2 py-1 flex items-center justify-between cursor-move handle">
+                <span class="font-bold text-xs tracking-wider">WINAMP EQUALIZER</span>
+                <button class="btn-close-eq w-3.5 h-3.5 bg-slate-700 border border-slate-900 text-white flex items-center justify-center text-[10px]">X</button>
+            </div>
+
+            <div class="p-2 space-y-2">
+                <div class="flex items-center justify-between text-[10px] bg-slate-900/60 p-1.5 rounded border border-slate-700/40">
+                    <div class="flex gap-1">
+                        <button id="btn-eq-on" class="btn-wa px-2 py-0.5 rounded active">ON</button>
+                        <button id="btn-eq-auto" class="btn-wa px-2 py-0.5 rounded">AUTO</button>
+                    </div>
+                    <select id="eq-presets" class="bg-slate-950 text-emerald-400 text-[10px] border border-slate-700 rounded px-1 py-0.5 outline-none">
+                        <option value="flat">Preset: Flat</option>
+                        <option value="rock">Rock</option>
+                        <option value="techno">Techno / Rave</option>
+                        <option value="dance">Dance</option>
+                        <option value="pop">Pop</option>
+                        <option value="fullbass">Full Bass</option>
+                        <option value="vocal">Vocal / Metal</option>
+                    </select>
+                </div>
+
+                <div class="bg-slate-950 p-2 rounded border border-slate-800 flex items-center justify-between gap-1 overflow-x-auto">
+                    <div class="flex flex-col items-center gap-1">
+                        <span class="text-[8px] text-slate-400 font-bold">PRE</span>
+                        <input id="eq-band-pre" type="range" min="-12" max="12" value="0" step="0.5" class="wa-slider-vert w-12 h-16 cursor-pointer">
+                        <span class="text-[8px] text-emerald-400 font-mono" id="val-pre">0dB</span>
+                    </div>
+                    <div class="w-[1px] h-16 bg-slate-800 my-auto"></div>
+                    <div id="eq-bands-container" class="flex gap-1.5 flex-1 justify-between"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PLAYLIST MANAGER WINDOW ================= -->
+        <div id="winamp-pl" class="winamp-window w-full md:w-[380px] shrink-0 z-10 select-none flex flex-col">
+            <div class="winamp-titlebar active px-2 py-1 flex items-center justify-between cursor-move handle">
+                <span class="font-bold text-xs tracking-wider">PLAYLIST MANAGER</span>
+                <div class="flex items-center gap-2 text-[10px]">
+                    <span id="playlist-count-badge" class="text-emerald-400 font-mono">38 Items</span>
+                    <button class="btn-close-pl w-3.5 h-3.5 bg-slate-700 border border-slate-900 text-white flex items-center justify-center">X</button>
+                </div>
+            </div>
+
+            <div class="p-2 space-y-2 flex-1 flex flex-col">
+                <!-- Metadata Header -->
+                <div class="flex gap-3 bg-slate-950 p-2 rounded border border-slate-800 items-center">
+                    <img id="current-album-art" src="https://i.ibb.co/hFyq6Dqm/images.jpg" alt="Album Cover" class="w-14 h-14 object-cover rounded border border-slate-700 shadow shrink-0 bg-slate-900" onerror="this.src='https://placehold.co/100x100/101015/00ff2b?text=NO+COVER'">
+                    <div class="flex-1 min-w-0 text-xs">
+                        <h3 id="current-track-name" class="font-bold text-slate-100 truncate">Apache Deep House Remix</h3>
+                        <p id="current-track-info" class="text-[11px] text-slate-400 truncate mt-0.5">Size: 3.43MB | Audio Track</p>
+                        <div class="mt-1 flex items-center gap-2">
+                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span id="media-type-tag" class="text-[10px] text-emerald-400 font-mono uppercase tracking-wider">AUDIO FILE</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Playlist Filter Search -->
+                <div class="relative">
+                    <input id="playlist-search" type="text" placeholder="Search audio, video or IPTV streams..." class="w-full bg-slate-950 text-slate-200 text-xs px-2.5 py-1 rounded border border-slate-800 focus:outline-none focus:border-slate-600">
+                </div>
+
+                <!-- Playlist Track List -->
+                <div id="playlist-drop-zone" class="winamp-bevel-in bg-black rounded p-1 flex-1 min-h-[220px] max-h-[280px] overflow-y-auto playlist-scroll font-mono text-xs transition-colors">
+                    <ul id="playlist-ul" class="space-y-0.5"></ul>
+                </div>
+
+                <!-- Playlist Action Buttons -->
+                <div class="flex items-center justify-between text-[10px] gap-1 pt-1">
+                    <label class="btn-wa px-2 py-1 rounded cursor-pointer flex items-center gap-1" title="Upload Audio, Video, or .m3u/.m3u8 Playlist files">
+                        <span>+ FILE / M3U</span>
+                        <input id="file-input" type="file" accept="audio/*,video/*,.m3u,.m3u8" class="hidden" multiple>
+                    </label>
+                    <button id="btn-add-url-pl" class="btn-wa px-2 py-1 rounded">+ URL</button>
+                    <button id="btn-clear-pl" class="btn-wa px-2 py-1 rounded">CLEAR</button>
+                    <button id="btn-sort-title" class="btn-wa px-2 py-1 rounded">SORT</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Dialog for Remote Media URL / Stream Link Input -->
+    <div id="url-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-4 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="text-sm font-bold text-amber-400 flex items-center gap-1.5">
+                    <span>⚡</span> Add Stream / IPTV Channel URL
+                </h3>
+                <button id="btn-close-url-modal" class="text-slate-400 hover:text-white font-bold">X</button>
+            </div>
+            
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-300 mb-1 font-semibold">Media File or Live IPTV URL (.mp3, .m4a, .mp4, .m3u8, .mpd):</label>
+                    <input id="input-media-url" type="url" placeholder="https://domain.com/live/stream.m3u8" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                    <label class="block text-slate-300 mb-1 font-semibold">Track / Channel Title (Optional):</label>
+                    <input id="input-media-title" type="text" placeholder="Live TV Channel or Custom Song" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                    <label class="block text-slate-300 mb-1 font-semibold">Media Type:</label>
+                    <select id="input-media-type" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-100 outline-none">
+                        <option value="auto">Auto-detect from extension</option>
+                        <option value="hls">HLS IPTV Live Stream (.m3u8)</option>
+                        <option value="dash">MPEG-DASH Stream (.mpd)</option>
+                        <option value="video">Standard Video (.mp4, .webm)</option>
+                        <option value="audio">Standard Audio (.mp3, .m4a)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button id="btn-cancel-url" class="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs">Cancel</button>
+                <button id="btn-confirm-url" class="px-4 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold">Add To Playlist</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Canvas used for Audio Visualizer Picture-in-Picture Stream -->
+    <canvas id="pip-canvas" width="400" height="225" class="hidden"></canvas>
+
+    <!-- Toast Notification Message Banner -->
+    <div id="toast-message" class="fixed bottom-5 right-5 bg-slate-900 text-emerald-400 border border-emerald-500/40 text-xs px-4 py-2.5 rounded-lg shadow-2xl opacity-0 transition-opacity duration-300 pointer-events-none z-50 flex items-center gap-2">
+        <span class="text-amber-400">⚡</span>
+        <span id="toast-text">Notification</span>
+    </div>
+
+    <!-- JavaScript Application Engine -->
+    <script>
+        // Full list of 35 pre-loaded audio tracks + sample HLS/DASH Live Streams
+        const INITIAL_TRACKS = [
+            { id: 1, title: "Apache Deep House Remix.m4a", duration: "3:29", size: "3.43MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233458/Apache_207_-_200_kmh_volvis_deep_house_remix.m4a", cover: "https://i.ibb.co/hFyq6Dqm/images.jpg", type: "audio" },
+            { id: 2, title: "Shakira - Hips Dont Lie.m4a", duration: "03:21", size: "3.22MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233651/Shakira_-_Hips_Dont_Lie_AZ2A_Remix.m4a", cover: "https://i.ibb.co/YB0bMdmc/artworks-y-Nl-LQt-M806-TWr-Lod-kvcvdg-t500x500.jpg", type: "audio" },
+            { id: 3, title: "Shawn Mendes - Theres Nothing Holdin Me Back.m4a", duration: "04:09", size: "4.02MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233641/Shawn_Mendes_-_Theres_Nothing_Holdin_Me_Back_John_Dezvar_Rub%C3%A9n_Guerin_Remix.m4a", cover: "https://i.ibb.co/NdNZKmwW/artworks-43e-NGJg-Hq-HDIz-Ha-I-q-VBPHw-t500x500.jpg", type: "audio" },
+            { id: 4, title: "Black Eyed Peas - Where Is the Love.m4a", duration: "3:24", size: "3.24MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790231605/Black_Eyed_Peas_-_Where_Is_the_Love_AZ2A_James_Godfrey_Remix.m4a", cover: "https://i.ibb.co/ynStGXJg/artworks-Dr-Fvn-YTe-Sx-R9z-KP3-P582xg-t500x500.jpg", type: "audio" },
+            { id: 5, title: "Trumpet Remix.mp3", duration: "04:05", size: "7.61MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790231583/Trumpet_Remix_Full_Bass.mp3", cover: "https://i.ibb.co/jvLqR6Pm/artworks-p-R8m-B7-CVh-Nb-Mr-UZh-p-Imiog-t500x500.jpg", type: "audio" },
+            { id: 6, title: "BEAUZ feat Nokia.mp3", duration: "1:59", size: "3.69MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790231651/Bel_Mercy_BEAUZ_Hard_Techno_Remix_feat._Nokia.mp3", cover: "https://i.ibb.co/zHrqgwJh/images-1.jpg", type: "audio" },
+            { id: 7, title: "Gonzi, Trip-Tamine - Kill The Beat.mp3", duration: "03:19", size: "6.38MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233499/Gonzi_Trip-Tamine_-_Kill_The_Beat.mp3", cover: "https://i.ibb.co/4g8jrbnb/images-2.jpg", type: "audio" },
+            { id: 8, title: "Marnik, LUNAX - Bye Bye Bye.mp3", duration: "02:51", size: "5.43MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790231682/Marnik_LUNAX_-_Bye_Bye_Bye.mp3", cover: "https://i.ibb.co/XkxNJj4M/images-3.jpg", type: "audio" },
+            { id: 9, title: "UpDown - The Logical Song.mp3", duration: "03:36", size: "6.66MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233506/AAfrAA_X_UpDown_-_The_Logical_Song.mp3", cover: "https://i.ibb.co/fzp7cbyj/80a9e160-a3c9-4f43-b59a-bd7c284bd247.jpg", type: "audio" },
+            { id: 10, title: "Eurodancer.mp3", duration: "02:24", size: "4.59MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233657/R3SPAWN_Poylow_-_Eurodancer.mp3", cover: "https://i.ibb.co/mV8CGXRw/maxresdefault.jpg", type: "audio" },
+            { id: 11, title: "Timmy Trumpet - It Mustve Been Love.mp3", duration: "03:15", size: "5.52MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233584/Timmy_Trumpet_Gabry_Ponte_Darren_Styles_-_It_Mustve_Been_Love_feat._Charla_K.mp3", cover: "https://i.ibb.co/N6VDfjJY/artworks-xaaabd3msw-K0-0-t500x500.jpg", type: "audio" },
+            { id: 12, title: "David Guetta - When We Were Young.mp3", duration: "3:09", size: "5.91MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233661/David_Guetta_Kim_Petras_-_When_We_Were_Young_inqple_Remix.mp3", cover: "https://i.ibb.co/YKYdJFP/images-4.jpg", type: "audio" },
+            { id: 13, title: "A.C.A.B - Genggam.mp3", duration: "4:30", size: "10.46MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233653/A.C.A.B_-_Genggam_Official_Lyric_Video.mp3", cover: "https://i.ibb.co/xSC94kzs/images-5.jpg", type: "audio" },
+            { id: 14, title: "HOI YA HOI - Getar Rimba Klasik Lagenda.mp3", duration: "03:52", size: "9.10MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233629/HOI_YA_HOI_-_Getar_Rimba_Klasik_Lagenda_Thrash_Metal_P._Ramlee_Cover.mp3", cover: "https://i.ibb.co/1t9Fctd5/maxresdefault-1.jpg", type: "audio" },
+            { id: 15, title: "MADU TIGA - GETAR RIMBA.mp3", duration: "03:50", size: "9.06MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233641/MADU_TIGA_-_GETAR_RIMBA_Thrash_Metal_Cover_P._Ramlee.mp3", cover: "https://i.ibb.co/Z1NvdYPS/maxresdefault-2.jpg", type: "audio" },
+            { id: 16, title: "R3SPAWN - E.mp3", duration: "02:09", size: "5.11MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233541/R3SPAWN_Josh_Le_Tissier_-_E.mp3", cover: "https://i.ibb.co/bjGfBnSs/images-6.jpg", type: "audio" },
+            { id: 17, title: "GYM NIGHT DRIVE.mp3", duration: "03:26", size: "8.17MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233652/HARD_TECHNO_MIX_2026_DARK_RAVE_GYM_NIGHT_DRIVE.mp3", cover: "https://i.ibb.co/9kGdHkq8/hqdefault.jpg", type: "audio" },
+            { id: 18, title: "Robert - Energy.mp3", duration: "04:20", size: "10.06MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233659/Robert_-_Energy_Experimental_Bass_Extended_REMIX.mp3", cover: "https://i.ibb.co/DDh6xq3Z/maxresdefault-3.jpg", type: "audio" },
+            { id: 19, title: "Henry Gurney.mp3", duration: "02:33", size: "2.34MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233483/Henry_Gurney.mp3", cover: "https://i.ibb.co/hFt5xwZz/images-7.jpg", type: "audio" },
+            { id: 20, title: "Nasib Si Penagih Dadah.mp3", duration: "04:11", size: "4.02MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233615/Nasib_Si_Penagih_Dadah.mp3", cover: "https://i.ibb.co/QjqSPHKJ/images-8.jpg", type: "audio" },
+            { id: 21, title: "Bella Ciao.mp3", duration: "2:39", size: "2.55MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233439/Bella_Ciao.mp3", cover: "https://i.ibb.co/LzmL3yXg/images-9.jpg", type: "audio" },
+            { id: 22, title: "OSAKA.mp3", duration: "02:08", size: "2.07MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233627/OSAKA.mp3", cover: "https://i.ibb.co/ZjpXqHd/images-10.jpg", type: "audio" },
+            { id: 23, title: "Rave Therapy.mp3", duration: "02:41", size: "2.50MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233551/Rave_Therapy.mp3", cover: "https://i.ibb.co/4c30CC2/images-11.jpg", type: "audio" },
+            { id: 24, title: "MOHON CUTI.mp3", duration: "02:42", size: "2.71MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233630/MOHON_CUTI.mp3", cover: "https://i.ibb.co/Q3TKd6n5/images-12.jpg", type: "audio" },
+            { id: 25, title: "Air Seni - K.O.I.mp3", duration: "4.46", size: "4.50MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233646/Air_Seni_-_K.O.I.mp3", cover: "https://i.ibb.co/5gGQ3G6t/maxresdefault-4.jpg", type: "audio" },
+            { id: 26, title: "A.C.A.B - Bangun.mp3", duration: "4:09", size: "4.01MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233542/A.C.A.B_-_Bangun.mp3", cover: "https://i.ibb.co/7Dh5vF3/maxresdefault-5.jpg", type: "audio" },
+            { id: 27, title: "A.C.A.B - Streets Of Uptown.mp3", duration: "4:46", size: "4.50MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233475/Streets_Of_Uptown.mp3", cover: "https://i.ibb.co/8nvffBvH/51y-Svx-XEXj-L-UXNa-N-FMjpg-QL85.jpg", type: "audio" },
+            { id: 28, title: "A.C.A.B - Skinhead 4 Life.mp3", duration: "5:35", size: "5.39MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233666/Skinhead_4_Life.mp3", cover: "https://i.ibb.co/4ZXnY6wp/images-13.jpg", type: "audio" },
+            { id: 29, title: "Apo Kono Eh Jang.mp3", duration: "4:06", size: "4.03MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233613/Apo_Kono_Eh_Jang.mp3", cover: "https://i.ibb.co/bgthVv2Z/images-14.jpg", type: "audio" },
+            { id: 30, title: "ULEK MAYANG.mp3", duration: "04:13", size: "4.20MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233472/ULEK_MAYANG.mp3", cover: "https://i.ibb.co/ZzQ9LhxK/ulekmayangfolkdance.jpg", type: "audio" },
+            { id: 31, title: "GLORY.mp3", duration: "02:18", size: "2.22MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233634/GLORY.mp3", cover: "https://i.ibb.co/SDdpzg0N/images-15.jpg", type: "audio" },
+            { id: 32, title: "Pengantin.mp3", duration: "03:30", size: "3.54MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233535/Pengantin.mp3", cover: "https://i.ibb.co/zTrchnvv/images-16.jpg", type: "audio" },
+            { id: 33, title: "Lemak Manis Ala Amboi Amboi.mp3", duration: "04:38", size: "4.48MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233623/Lemak.mp3", cover: "https://i.ibb.co/99rkQm2J/images-17.jpg", type: "audio" },
+            { id: 34, title: "我的好兄弟.mp3", duration: "02:36", size: "4.99MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233623/%E6%88%91%E7%9A%84%E5%A5%BD%E5%85%84%E5%BC%9F.mp3", cover: "https://i.ibb.co/21pk9WvZ/images-18.jpg", type: "audio" },
+            { id: 35, title: "Rave.mp3", duration: "02:27", size: "4.82MB", url: "https://res.cloudinary.com/b7lci7jw/video/upload/v1790233664/Rave.mp3", cover: "https://i.ibb.co/99ScW4H0/images-19.jpg", type: "audio" },
+            // Pre-loaded Live Streams to demonstrate IPTV HLS & DASH
+            { id: 36, title: "[LIVE IPTV] Sintel HLS Stream.m3u8", duration: "LIVE", size: "HLS", url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8", cover: "https://images.unsplash.com/photo-1593784991095-a205069470b6?w=300", type: "hls" },
+            { id: 37, title: "[LIVE IPTV] Tears of Steel HLS.m3u8", duration: "LIVE", size: "HLS", url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8", cover: "https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?w=300", type: "hls" },
+            { id: 38, title: "[LIVE IPTV] Akamai Big Buck Bunny DASH.mpd", duration: "LIVE", size: "DASH", url: "https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd", cover: "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=300", type: "dash" }
+        ];
+
+        // Core State
+        let playlist = [...INITIAL_TRACKS];
+        let currentIndex = 0;
+        let isPlaying = false;
+        let isShuffle = false;
+        let isRepeat = false;
+        let isTimeRemaining = false;
+        let visualizerMode = 0; // 0 = Spectrum, 1 = Oscilloscope
+
+        // Media Stream Decoders
+        let hlsPlayer = null;
+        let dashPlayer = null;
+
+        // Web Audio API Nodes
+        let audioCtx = null;
+        let audioSource = null;
+        let analyser = null;
+        let stereoPannerNode = null;
+        let eqPreampNode = null;
+        let eqBands = [];
+
+        const EQ_FREQUENCIES = [60, 170, 310, 600, 1000, 3000, 6000, 12000, 14000, 16000];
+        const EQ_PRESETS = {
+            flat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            rock: [4, 3, 2, 0, -1, 1, 3, 4, 4, 4],
+            techno: [5, 4, 2, 0, -2, 2, 4, 4, 3, 3],
+            dance: [6, 5, 2, 0, 0, 3, 5, 5, 4, 0],
+            pop: [-1, 2, 4, 4, 3, 0, -1, -2, -2, -2],
+            fullbass: [7, 6, 5, 3, 1, -2, -4, -5, -6, -6],
+            vocal: [-2, -1, 1, 3, 4, 4, 3, 2, 1, 0]
+        };
+
+        // DOM Elements
+        const mediaElement = document.getElementById('media-engine');
+        const audioScreenFallback = document.getElementById('audio-screen-fallback');
+        const videoWindowArt = document.getElementById('video-window-art');
+        const videoModeBadge = document.getElementById('video-mode-badge');
+        const timeDisplay = document.getElementById('time-display');
+        const timeMinus = document.getElementById('time-minus');
+        const statusDisplay = document.getElementById('display-status');
+        const marqueeEl = document.getElementById('track-marquee');
+        const albumArt = document.getElementById('current-album-art');
+        const currentTrackName = document.getElementById('current-track-name');
+        const currentTrackInfo = document.getElementById('current-track-info');
+        const mediaTypeTag = document.getElementById('media-type-tag');
+        const playlistUl = document.getElementById('playlist-ul');
+        const sliderSeek = document.getElementById('slider-seek');
+        const seekTimeText = document.getElementById('seek-time-text');
+        const sliderVolume = document.getElementById('slider-volume');
+        const sliderBalance = document.getElementById('slider-balance');
+        const volVal = document.getElementById('vol-val');
+        const balVal = document.getElementById('bal-val');
+        const displayType = document.getElementById('display-type');
+        const mainVisCanvas = document.getElementById('main-vis-canvas');
+        const mainVisCtx = mainVisCanvas.getContext('2d');
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            renderPlaylist();
+            buildEqualizerUI();
+            setupEventListeners();
+            setupDraggableWindows();
+            setupDragAndDrop();
+            loadTrack(0, false);
+            initVisualizerLoop();
+        });
+
+        function getMediaType(track) {
+            if (track.type && track.type !== 'auto') return track.type;
+            const url = track.url.toLowerCase();
+            if (url.includes('.m3u8')) return 'hls';
+            if (url.includes('.mpd')) return 'dash';
+            if ((/\.(mp4|webm|ogv|mov)$/i).test(url)) return 'video';
+            return 'audio';
+        }
+
+        function destroyStreamingEngines() {
+            if (hlsPlayer) {
+                hlsPlayer.destroy();
+                hlsPlayer = null;
+            }
+            if (dashPlayer) {
+                dashPlayer.reset();
+                dashPlayer = null;
+            }
+        }
+
+        function initWebAudio() {
+            if (audioCtx) return;
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 64;
+
+                stereoPannerNode = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+                eqPreampNode = audioCtx.createGain();
+
+                audioSource = audioCtx.createMediaElementSource(mediaElement);
+
+                // Build 10-band Equalizer Node Chain
+                let lastNode = audioSource;
+
+                // Preamp
+                lastNode.connect(eqPreampNode);
+                lastNode = eqPreampNode;
+
+                // 10 Biquad Filters
+                eqBands = EQ_FREQUENCIES.map(freq => {
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = freq < 250 ? 'lowshelf' : freq > 8000 ? 'highshelf' : 'peaking';
+                    filter.frequency.value = freq;
+                    filter.gain.value = 0;
+                    lastNode.connect(filter);
+                    lastNode = filter;
+                    return filter;
+                });
+
+                if (stereoPannerNode) {
+                    lastNode.connect(stereoPannerNode);
+                    lastNode = stereoPannerNode;
+                }
+
+                lastNode.connect(analyser);
+                analyser.connect(audioCtx.destination);
+            } catch (err) {
+                console.warn("Web Audio API warning:", err);
+            }
+        }
+
+        // Load Track / IPTV Stream Engine
+        function loadTrack(index, autoPlay = true) {
+            if (playlist.length === 0) return;
+            if (index < 0) index = playlist.length - 1;
+            if (index >= playlist.length) index = 0;
+
+            currentIndex = index;
+            const track = playlist[currentIndex];
+            const mediaType = getMediaType(track);
+            const isVisualMedia = mediaType === 'video' || mediaType === 'hls' || mediaType === 'dash';
+
+            destroyStreamingEngines();
+
+            // Load media depending on type (HLS, DASH, Video, or Audio)
+            if (mediaType === 'hls') {
+                if (Hls.isSupported()) {
+                    hlsPlayer = new Hls();
+                    hlsPlayer.loadSource(track.url);
+                    hlsPlayer.attachMedia(mediaElement);
+                } else if (mediaElement.canPlayType('application/vnd.apple.mpegurl')) {
+                    mediaElement.src = track.url;
+                }
+            } else if (mediaType === 'dash') {
+                if (typeof dashjs !== 'undefined') {
+                    dashPlayer = dashjs.MediaPlayer().create();
+                    dashPlayer.initialize(mediaElement, track.url, false);
+                } else {
+                    mediaElement.src = track.url;
+                }
+            } else {
+                mediaElement.src = track.url;
+            }
+
+            albumArt.src = track.cover || "https://placehold.co/100x100/101015/00ff2b?text=NO+COVER";
+            videoWindowArt.src = track.cover || "https://placehold.co/100x100/101015/00ff2b?text=NO+COVER";
+            
+            currentTrackName.innerText = track.title;
+            currentTrackInfo.innerText = `Type: ${mediaType.toUpperCase()} | Size: ${track.size || 'N/A'}`;
+            marqueeEl.innerText = `${currentIndex + 1}. ${track.title} - Winamp Web Player`;
+            document.getElementById('audio-fallback-title').innerText = track.title;
+
+            // Toggle Screen View Modes
+            if (isVisualMedia) {
+                mediaElement.classList.remove('hidden');
+                audioScreenFallback.classList.add('hidden');
+                const badgeLabel = mediaType === 'hls' ? 'IPTV HLS LIVE' : mediaType === 'dash' ? 'MPEG-DASH LIVE' : 'VIDEO MODE';
+                videoModeBadge.innerText = badgeLabel;
+                videoModeBadge.className = "px-1.5 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800 font-bold";
+                displayType.innerText = mediaType.toUpperCase();
+                mediaTypeTag.innerText = `${mediaType.toUpperCase()} STREAM`;
+                mediaTypeTag.className = "text-[10px] text-amber-400 font-mono uppercase tracking-wider";
+            } else {
+                mediaElement.classList.add('hidden');
+                audioScreenFallback.classList.remove('hidden');
+                videoModeBadge.innerText = "AUDIO VISUALIZER";
+                videoModeBadge.className = "px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold";
+                displayType.innerText = "AUDIO";
+                mediaTypeTag.innerText = "AUDIO FILE";
+                mediaTypeTag.className = "text-[10px] text-emerald-400 font-mono uppercase tracking-wider";
+            }
+
+            updatePlaylistUI();
+
+            if (autoPlay) {
+                playMedia();
+            } else {
+                statusDisplay.innerText = "STOPPED";
+                timeDisplay.innerText = "00:00";
+            }
+        }
+
+        function playMedia() {
+            initWebAudio();
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            mediaElement.play().then(() => {
+                isPlaying = true;
+                statusDisplay.innerText = "PLAYING";
+            }).catch(err => {
+                console.warn("Playback error:", err);
+                statusDisplay.innerText = "ERROR";
+                showToast("Click play to begin stream playback");
+            });
+        }
+
+        function pauseMedia() {
+            mediaElement.pause();
+            isPlaying = false;
+            statusDisplay.innerText = "PAUSED";
+        }
+
+        function stopMedia() {
+            mediaElement.pause();
+            mediaElement.currentTime = 0;
+            isPlaying = false;
+            statusDisplay.innerText = "STOPPED";
+            timeDisplay.innerText = "00:00";
+            sliderSeek.value = 0;
+        }
+
+        // Parse M3U & M3U8 Playlist files
+        function parseM3UPlaylist(content) {
+            const lines = content.split('\n');
+            const items = [];
+            let currentTitle = null;
+
+            lines.forEach(line => {
+                line = line.trim();
+                if (line.startsWith('#EXTINF:')) {
+                    const parts = line.split(',');
+                    currentTitle = parts.length > 1 ? parts.slice(1).join(',') : 'Live TV Channel';
+                } else if (line && !line.startsWith('#')) {
+                    const url = line;
+                    const type = getMediaType({ url });
+                    items.push({
+                        id: Date.now() + Math.random(),
+                        title: currentTitle || url.split('/').pop() || 'Live Stream',
+                        duration: type === 'hls' || type === 'dash' ? 'LIVE' : '--:--',
+                        size: type.toUpperCase(),
+                        url: url,
+                        cover: type === 'hls' || type === 'dash' ? "https://placehold.co/100x100/101015/ffb700?text=IPTV+STREAM" : "https://placehold.co/100x100/101015/00ff2b?text=MEDIA",
+                        type: type
+                    });
+                    currentTitle = null;
+                }
+            });
+
+            return items;
+        }
+
+        function renderPlaylist(filteredList = null) {
+            const listToRender = filteredList || playlist;
+            playlistUl.innerHTML = '';
+
+            if (listToRender.length === 0) {
+                playlistUl.innerHTML = `<li class="p-3 text-center text-slate-500 italic">Playlist empty. Drag & drop files or add URLs.</li>`;
+                return;
+            }
+
+            listToRender.forEach((track) => {
+                const origIndex = playlist.findIndex(t => t.id === track.id);
+                const li = document.createElement('li');
+                const isSelected = origIndex === currentIndex;
+                const type = getMediaType(track);
+                const isLive = type === 'hls' || type === 'dash';
+
+                li.className = `px-2 py-1 flex items-center justify-between cursor-pointer rounded transition-colors text-xs ${
+                    isSelected ? 'bg-amber-500/20 text-amber-300 font-bold border-l-2 border-amber-400' : 'hover:bg-slate-800 text-slate-300'
+                }`;
+
+                li.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden mr-2">
+                        <span class="text-[10px] text-slate-500 font-mono w-5">${origIndex + 1}.</span>
+                        <span class="text-[10px] ${isLive ? 'text-amber-400 font-bold' : type === 'video' ? 'text-cyan-400' : 'text-emerald-400'}">[${type.toUpperCase()}]</span>
+                        <span class="truncate">${track.title}</span>
+                    </div>
+                    <span class="text-[10px] text-slate-400 font-mono shrink-0">${track.duration || '0:00'}</span>
+                `;
+
+                li.addEventListener('dblclick', () => loadTrack(origIndex, true));
+                li.addEventListener('click', () => {
+                    currentIndex = origIndex;
+                    updatePlaylistUI();
+                });
+
+                playlistUl.appendChild(li);
+            });
+            
+            document.getElementById('playlist-count-badge').innerText = `${playlist.length} Items`;
+        }
+
+        function updatePlaylistUI() {
+            renderPlaylist();
+            const selectedItem = playlistUl.children[currentIndex];
+            if (selectedItem) selectedItem.scrollIntoView({ block: 'nearest' });
+        }
+
+        // Build 10-Band EQ UI Controls
+        function buildEqualizerUI() {
+            const container = document.getElementById('eq-bands-container');
+            container.innerHTML = '';
+
+            const bandLabels = ['60', '170', '310', '600', '1K', '3K', '6K', '12K', '14K', '16K'];
+
+            EQ_FREQUENCIES.forEach((freq, idx) => {
+                const div = document.createElement('div');
+                div.className = 'flex flex-col items-center gap-1';
+
+                div.innerHTML = `
+                    <span class="text-[8px] text-slate-400 font-bold">${bandLabels[idx]}</span>
+                    <input type="range" min="-12" max="12" value="0" step="0.5" class="wa-slider-vert w-10 h-16 cursor-pointer eq-slider" data-index="${idx}">
+                    <span class="text-[8px] text-emerald-400 font-mono val-eq">0dB</span>
+                `;
+
+                container.appendChild(div);
+            });
+
+            document.querySelectorAll('.eq-slider').forEach(slider => {
+                slider.addEventListener('input', (e) => {
+                    const idx = parseInt(e.target.dataset.index);
+                    const val = parseFloat(e.target.value);
+                    if (eqBands[idx]) eqBands[idx].frequency.value = EQ_FREQUENCIES[idx];
+                    if (eqBands[idx]) eqBands[idx].gain.value = val;
+                    e.target.nextElementSibling.innerText = `${val > 0 ? '+' : ''}${val}dB`;
+                });
+            });
+
+            document.getElementById('eq-band-pre').addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                if (eqPreampNode) eqPreampNode.gain.value = Math.pow(10, val / 20);
+                document.getElementById('val-pre').innerText = `${val > 0 ? '+' : ''}${val}dB`;
+            });
+
+            document.getElementById('eq-presets').addEventListener('change', (e) => {
+                const presetKey = e.target.value;
+                const values = EQ_PRESETS[presetKey] || EQ_PRESETS.flat;
+                const sliders = document.querySelectorAll('.eq-slider');
+
+                sliders.forEach((slider, i) => {
+                    const val = values[i];
+                    slider.value = val;
+                    if (eqBands[i]) eqBands[i].gain.value = val;
+                    slider.nextElementSibling.innerText = `${val > 0 ? '+' : ''}${val}dB`;
+                });
+                showToast(`Equalizer Preset: ${presetKey.toUpperCase()}`);
+            });
+        }
+
+        function setupDragAndDrop() {
+            const dropZone = document.body;
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+
+            dropZone.addEventListener('dragover', () => {
+                document.getElementById('playlist-drop-zone').classList.add('drop-zone-active');
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => {
+                    document.getElementById('playlist-drop-zone').classList.remove('drop-zone-active');
+                });
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                const files = Array.from(e.dataTransfer.files);
+                if (files.length > 0) {
+                    processUploadedFiles(files);
+                }
+            });
+        }
+
+        function processUploadedFiles(files) {
+            files.forEach(file => {
+                if (file.name.endsWith('.m3u') || file.name.endsWith('.m3u8')) {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        const parsed = parseM3UPlaylist(evt.target.result);
+                        playlist.push(...parsed);
+                        renderPlaylist();
+                        showToast(`Loaded ${parsed.length} items from ${file.name}`);
+                    };
+                    reader.readAsText(file);
+                } else {
+                    const type = file.type.startsWith('video/') ? 'video' : 'audio';
+                    playlist.push({
+                        id: Date.now() + Math.random(),
+                        title: file.name,
+                        duration: "--:--",
+                        size: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
+                        url: URL.createObjectURL(file),
+                        cover: type === 'video' ? "https://placehold.co/100x100/101015/ffb700?text=LOCAL+VIDEO" : "https://placehold.co/100x100/101015/00ff2b?text=LOCAL+AUDIO",
+                        type: type
+                    });
+                    renderPlaylist();
+                }
+            });
+            showToast(`Added ${files.length} item(s) to playlist`);
+        }
+
+        function setupEventListeners() {
+            document.getElementById('btn-play').addEventListener('click', () => playMedia());
+            document.getElementById('btn-pause').addEventListener('click', () => pauseMedia());
+            document.getElementById('btn-stop').addEventListener('click', () => stopMedia());
+            document.getElementById('btn-next').addEventListener('click', () => playNextTrack());
+            document.getElementById('btn-prev').addEventListener('click', () => playPrevTrack());
+
+            const btnShuf = document.getElementById('btn-shuf');
+            btnShuf.addEventListener('click', () => {
+                isShuffle = !isShuffle;
+                btnShuf.classList.toggle('active', isShuffle);
+                showToast(`Shuffle: ${isShuffle ? 'ON' : 'OFF'}`);
+            });
+
+            const btnRep = document.getElementById('btn-rep');
+            btnRep.addEventListener('click', () => {
+                isRepeat = !isRepeat;
+                btnRep.classList.toggle('active', isRepeat);
+                showToast(`Repeat: ${isRepeat ? 'ON' : 'OFF'}`);
+            });
+
+            document.getElementById('btn-eject').addEventListener('click', () => {
+                document.getElementById('file-input').click();
+            });
+
+            document.getElementById('file-input').addEventListener('change', (e) => {
+                const files = Array.from(e.target.files);
+                if (files.length > 0) processUploadedFiles(files);
+            });
+
+            // Remote URL Modal handlers
+            const urlModal = document.getElementById('url-modal');
+            [document.getElementById('btn-open-url-modal'), document.getElementById('btn-add-url-pl')].forEach(b => {
+                b.addEventListener('click', () => urlModal.classList.remove('hidden'));
+            });
+            
+            document.getElementById('btn-close-url-modal').addEventListener('click', () => urlModal.classList.add('hidden'));
+            document.getElementById('btn-cancel-url').addEventListener('click', () => urlModal.classList.add('hidden'));
+
+            document.getElementById('btn-confirm-url').addEventListener('click', () => {
+                const url = document.getElementById('input-media-url').value.trim();
+                const title = document.getElementById('input-media-title').value.trim() || url.split('/').pop() || 'Remote Stream';
+                const forcedType = document.getElementById('input-media-type').value;
+
+                if (!url) {
+                    showToast("Please enter a valid URL!");
+                    return;
+                }
+
+                let finalType = forcedType;
+                if (forcedType === 'auto') {
+                    finalType = getMediaType({ url });
+                }
+
+                playlist.push({
+                    id: Date.now() + Math.random(),
+                    title: title,
+                    duration: finalType === 'hls' || finalType === 'dash' ? "LIVE" : "STREAM",
+                    size: finalType.toUpperCase(),
+                    url: url,
+                    cover: finalType === 'video' || finalType === 'hls' || finalType === 'dash' ? "https://placehold.co/100x100/101015/ffb700?text=STREAM" : "https://placehold.co/100x100/101015/00ff2b?text=AUDIO",
+                    type: finalType
+                });
+
+                renderPlaylist();
+                urlModal.classList.add('hidden');
+                document.getElementById('input-media-url').value = '';
+                document.getElementById('input-media-title').value = '';
+                showToast("Added media URL to playlist!");
+            });
+
+            // Window Toggles
+            const eqWin = document.getElementById('winamp-eq');
+            const plWin = document.getElementById('winamp-pl');
+            const vidWin = document.getElementById('winamp-video');
+
+            document.getElementById('btn-toggle-eq').addEventListener('click', (e) => {
+                eqWin.classList.toggle('hidden');
+                e.target.classList.toggle('active', !eqWin.classList.contains('hidden'));
+            });
+
+            document.getElementById('btn-toggle-pl').addEventListener('click', (e) => {
+                plWin.classList.toggle('hidden');
+                e.target.classList.toggle('active', !plWin.classList.contains('hidden'));
+            });
+
+            document.getElementById('btn-toggle-vid').addEventListener('click', (e) => {
+                vidWin.classList.toggle('hidden');
+                e.target.classList.toggle('active', !vidWin.classList.contains('hidden'));
+            });
+
+            document.querySelectorAll('.btn-close-eq').forEach(btn => btn.addEventListener('click', () => {
+                eqWin.classList.add('hidden');
+                document.getElementById('btn-toggle-eq').classList.remove('active');
+            }));
+
+            document.querySelectorAll('.btn-close-pl').forEach(btn => btn.addEventListener('click', () => {
+                plWin.classList.add('hidden');
+                document.getElementById('btn-toggle-pl').classList.remove('active');
+            }));
+
+            document.querySelectorAll('.btn-close-vid').forEach(btn => btn.addEventListener('click', () => {
+                vidWin.classList.add('hidden');
+                document.getElementById('btn-toggle-vid').classList.remove('active');
+            }));
+
+            // Media Time Updates
+            mediaElement.addEventListener('timeupdate', () => {
+                if (!isNaN(mediaElement.duration) && mediaElement.duration > 0) {
+                    const pct = (mediaElement.currentTime / mediaElement.duration) * 100;
+                    sliderSeek.value = pct;
+
+                    let displayTime = mediaElement.currentTime;
+                    if (isTimeRemaining) {
+                        displayTime = mediaElement.duration - mediaElement.currentTime;
+                        timeMinus.classList.remove('hidden');
+                    } else {
+                        timeMinus.classList.add('hidden');
+                    }
+
+                    timeDisplay.innerText = formatTime(displayTime);
+                    seekTimeText.innerText = `${formatTime(mediaElement.currentTime)} / ${formatTime(mediaElement.duration)}`;
+                }
+            });
+
+            mediaElement.addEventListener('ended', () => {
+                if (isRepeat) playMedia();
+                else playNextTrack();
+            });
+
+            sliderSeek.addEventListener('input', (e) => {
+                if (!isNaN(mediaElement.duration) && mediaElement.duration > 0) {
+                    mediaElement.currentTime = (e.target.value / 100) * mediaElement.duration;
+                }
+            });
+
+            sliderVolume.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                mediaElement.volume = val;
+                volVal.innerText = `${Math.round(val * 100)}%`;
+            });
+
+            sliderBalance.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                if (stereoPannerNode) stereoPannerNode.pan.value = val;
+                if (val === 0) balVal.innerText = "CENTER";
+                else if (val < 0) balVal.innerText = `L ${Math.abs(Math.round(val * 100))}%`;
+                else balVal.innerText = `R ${Math.round(val * 100)}%`;
+            });
+
+            document.getElementById('time-counter').addEventListener('click', () => {
+                isTimeRemaining = !isTimeRemaining;
+                showToast(`Time Display: ${isTimeRemaining ? 'Remaining' : 'Elapsed'}`);
+            });
+
+            mainVisCanvas.addEventListener('click', () => {
+                visualizerMode = visualizerMode === 0 ? 1 : 0;
+                showToast(`Visualizer: ${visualizerMode === 0 ? 'Spectrum' : 'Oscilloscope'}`);
+            });
+
+            document.getElementById('playlist-search').addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const filtered = playlist.filter(t => t.title.toLowerCase().includes(term));
+                renderPlaylist(filtered);
+            });
+
+            document.getElementById('btn-sort-title').addEventListener('click', () => {
+                playlist.sort((a, b) => a.title.localeCompare(b.title));
+                renderPlaylist();
+                showToast("Playlist sorted alphabetically");
+            });
+
+            document.getElementById('btn-clear-pl').addEventListener('click', () => {
+                playlist = [];
+                renderPlaylist();
+                stopMedia();
+                showToast("Playlist cleared");
+            });
+
+            document.getElementById('btn-fullscreen-vid').addEventListener('click', () => {
+                if (mediaElement.requestFullscreen) mediaElement.requestFullscreen();
+                else showToast("Fullscreen not supported");
+            });
+
+            document.getElementById('btn-pip').addEventListener('click', togglePictureInPicture);
+            document.getElementById('btn-video-pip-inline').addEventListener('click', togglePictureInPicture);
+
+            document.getElementById('btn-layout-reset').addEventListener('click', () => {
+                [document.getElementById('winamp-main'), document.getElementById('winamp-eq'), document.getElementById('winamp-pl'), document.getElementById('winamp-video')].forEach(w => {
+                    w.style.position = 'relative';
+                    w.style.left = '0px';
+                    w.style.top = '0px';
+                    w.classList.remove('hidden');
+                });
+                document.getElementById('btn-toggle-eq').classList.add('active');
+                document.getElementById('btn-toggle-pl').classList.add('active');
+                document.getElementById('btn-toggle-vid').classList.add('active');
+                showToast("Layout reset to default");
+            });
+        }
+
+        function playNextTrack() {
+            if (playlist.length === 0) return;
+            if (isShuffle) {
+                const randIndex = Math.floor(Math.random() * playlist.length);
+                loadTrack(randIndex, true);
+            } else {
+                loadTrack(currentIndex + 1, true);
+            }
+        }
+
+        function playPrevTrack() {
+            if (playlist.length === 0) return;
+            loadTrack(currentIndex - 1, true);
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return "00:00";
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        function initVisualizerLoop() {
+            const bufferLength = analyser ? analyser.frequencyBinCount : 64;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function draw() {
+                requestAnimationFrame(draw);
+
+                const width = mainVisCanvas.width;
+                const height = mainVisCanvas.height;
+
+                mainVisCtx.fillStyle = '#000000';
+                mainVisCtx.fillRect(0, 0, width, height);
+
+                if (!analyser || !isPlaying) {
+                    mainVisCtx.strokeStyle = '#00ff2b';
+                    mainVisCtx.lineWidth = 1;
+                    mainVisCtx.beginPath();
+                    mainVisCtx.moveTo(0, height / 2);
+                    mainVisCtx.lineTo(width, height / 2);
+                    mainVisCtx.stroke();
+                    return;
+                }
+
+                if (visualizerMode === 0) {
+                    analyser.getByteFrequencyData(dataArray);
+                    const barCount = 18;
+                    const barWidth = Math.floor(width / barCount) - 1;
+
+                    for (let i = 0; i < barCount; i++) {
+                        const barHeight = Math.floor((dataArray[i * 2] / 255) * height);
+                        const x = i * (barWidth + 1);
+                        const y = height - barHeight;
+
+                        const grad = mainVisCtx.createLinearGradient(0, height, 0, 0);
+                        grad.addColorStop(0, '#00ff2b');
+                        grad.addColorStop(0.6, '#ffff00');
+                        grad.addColorStop(1, '#ff0000');
+
+                        mainVisCtx.fillStyle = grad;
+                        mainVisCtx.fillRect(x, y, barWidth, barHeight);
+
+                        mainVisCtx.fillStyle = '#ffffff';
+                        mainVisCtx.fillRect(x, Math.max(0, y - 2), barWidth, 1);
+                    }
+                } else {
+                    analyser.getByteTimeDomainData(dataArray);
+                    mainVisCtx.lineWidth = 1.5;
+                    mainVisCtx.strokeStyle = '#00ff2b';
+                    mainVisCtx.beginPath();
+
+                    const sliceWidth = width / bufferLength;
+                    let x = 0;
+
+                    for (let i = 0; i < bufferLength; i++) {
+                        const v = dataArray[i] / 128.0;
+                        const y = (v * height) / 2;
+
+                        if (i === 0) mainVisCtx.moveTo(x, y);
+                        else mainVisCtx.lineTo(x, y);
+
+                        x += sliceWidth;
+                    }
+
+                    mainVisCtx.lineTo(width, height / 2);
+                    mainVisCtx.stroke();
+                }
+
+                updatePiPCanvas();
+            }
+
+            draw();
+        }
+
+        async function togglePictureInPicture() {
+            const currentTrack = playlist[currentIndex];
+            const mediaType = getMediaType(currentTrack || {});
+            const isVid = mediaType === 'video' || mediaType === 'hls' || mediaType === 'dash';
+
+            try {
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                    showToast("Exited Picture-in-Picture");
+                } else if (isVid && mediaElement.requestPictureInPicture) {
+                    await mediaElement.requestPictureInPicture();
+                    showToast("Native Video Picture-in-Picture active!");
+                } else {
+                    const pipCanvas = document.getElementById('pip-canvas');
+                    const streamVideo = document.createElement('video');
+                    streamVideo.srcObject = pipCanvas.captureStream(30);
+                    streamVideo.muted = true;
+                    await streamVideo.play();
+                    await streamVideo.requestPictureInPicture();
+                    showToast("Audio Visualizer Picture-in-Picture active!");
+                }
+            } catch (err) {
+                console.error("PiP error:", err);
+                showToast("Picture-in-Picture unavailable");
+            }
+        }
+
+        function updatePiPCanvas() {
+            const pipCanvas = document.getElementById('pip-canvas');
+            const ctx = pipCanvas.getContext('2d');
+            const w = pipCanvas.width;
+            const h = pipCanvas.height;
+
+            ctx.fillStyle = '#0f111a';
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.fillStyle = '#00ff2b';
+            ctx.font = '16px "Share Tech Mono", monospace';
+            const currentTitle = playlist[currentIndex] ? playlist[currentIndex].title : "Winamp Player";
+            ctx.fillText(`WINAMP 2.91 - ${statusDisplay.innerText}`, 15, 30);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '14px sans-serif';
+            ctx.fillText(currentTitle.substring(0, 35), 15, 55);
+
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(15, 75, w - 30, 120);
+
+            if (analyser && isPlaying) {
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                analyser.getByteFrequencyData(dataArray);
+
+                const barCount = 28;
+                const barWidth = Math.floor((w - 40) / barCount);
+
+                for (let i = 0; i < barCount; i++) {
+                    const barHeight = Math.floor((dataArray[i * 2] / 255) * 110);
+                    const x = 20 + i * (barWidth + 1);
+                    const y = 190 - barHeight;
+
+                    const grad = ctx.createLinearGradient(0, 190, 0, 80);
+                    grad.addColorStop(0, '#00ff2b');
+                    grad.addColorStop(0.7, '#ffff00');
+                    grad.addColorStop(1, '#ff0000');
+
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(x, y, barWidth, barHeight);
+                }
+            } else {
+                ctx.strokeStyle = '#00ff2b';
+                ctx.beginPath();
+                ctx.moveTo(20, 135);
+                ctx.lineTo(w - 20, 135);
+                ctx.stroke();
+            }
+        }
+
+        function setupDraggableWindows() {
+            const windows = document.querySelectorAll('.winamp-window');
+            windows.forEach(win => {
+                const handle = win.querySelector('.handle') || win;
+                let isDragging = false;
+                let startX, startY, initialLeft, initialTop;
+
+                handle.addEventListener('mousedown', (e) => {
+                    if (window.innerWidth < 768) return;
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+
+                    const rect = win.getBoundingClientRect();
+                    initialLeft = rect.left;
+                    initialTop = rect.top;
+
+                    win.style.position = 'fixed';
+                    win.style.left = `${initialLeft}px`;
+                    win.style.top = `${initialTop}px`;
+                    win.style.margin = '0';
+                    win.style.zIndex = '50';
+
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
+                });
+
+                function onMouseMove(e) {
+                    if (!isDragging) return;
+                    win.style.left = `${initialLeft + (e.clientX - startX)}px`;
+                    win.style.top = `${initialTop + (e.clientY - startY)}px`;
+                }
+
+                function onMouseUp() {
+                    isDragging = false;
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                }
+            });
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast-message');
+            document.getElementById('toast-text').innerText = msg;
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
